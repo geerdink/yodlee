@@ -3,19 +3,19 @@ package yodlee
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshalling.Marshal
-import akka.http.scaladsl.model.{FormData, HttpMethods, HttpRequest, RequestEntity}
+import akka.http.scaladsl.model.{HttpMethods, HttpRequest, RequestEntity}
 import com.typesafe.config.ConfigFactory
-import akka.http.scaladsl.server.Directives
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 
+import scala.collection.mutable.HashMap
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Await
+import org.json4s._
+import org.json4s.jackson.JsonMethods._
+import yodlee.domain.CobrandContext
 
 object LoginApp extends App {
   println("LoginApp START")
-
-  var MAX_LOGINS = 1
 
   private val fqcn = LoginApp.getClass.getName
 
@@ -28,8 +28,14 @@ object LoginApp extends App {
   val userPassword = config.getString("yodlee.userPassword")
 //  val registerParam = config.getString("yodlee.registerParam")
 
-  implicit val system = ActorSystem()
-  implicit val materializer = ActorMaterializer()
+  val loginTokens = new HashMap[String, String]
+  val cobTokens = new HashMap[String, String]
+
+  implicit val system: ActorSystem = ActorSystem()
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
+  implicit val formats = DefaultFormats
+
+  doCoBrandLogin(coBrandUserName, coBrandPassword)
 
   def doCoBrandLogin(coBrandUserName: String, coBrandPassword: String): Unit = {
     val mn = "doCoBrandLogin(coBrandUserName " + coBrandUserName + ", coBrandPassword " + coBrandPassword + " )"
@@ -45,16 +51,21 @@ object LoginApp extends App {
       entity <- Unmarshal(response.entity).to[String]
     } yield entity
 
-    content.onComplete(println(_))
+    content.onComplete(s => SetCobrand(s.get))
 
+     def SetCobrand(json: String) = {
+     //  println(json)
+       val cobrand = parse(json).extract[CobrandContext]
 
-   // val jsonResponse = HTTP.doPost(coBrandLoginURL, requestBody)
-   // val coBrand = GSONParser.handleJson(jsonResponse, classOf[CobrandContext]).asInstanceOf[CobrandContext]
-    // Change the toString() method of the class to decide what to display on the Console.
-   // System.out.println(coBrand.toString)
-   // cobTokens.put("cobSession", coBrand.getSession.getCobSession)
-  //  loginTokens.put("cobSession", coBrand.getSession.getCobSession)
+       println("COB SESSION = " + cobrand.session.cobSession)
+       cobTokens.put("cobSession", cobrand.session.cobSession)
+       loginTokens.put("cobSession", cobrand.session.cobSession)
+     }
   }
 
-  doCoBrandLogin(coBrandUserName, coBrandPassword)
+
+  def doMemberLogin(userName: String, password: String) = {
+    // TODO
+
+  }
 }
