@@ -43,7 +43,6 @@ object LoginApp extends App {
     //final String requestBody="cobrandLogin="+coBrandUserName+"&cobrandPassword="+coBrandPassword;
     val requestBody = "{" + "\"cobrand\":      {" + "\"cobrandLogin\": " + "\"" + coBrandUserName + "\"" + "," + "\"cobrandPassword\": " + "\"" + coBrandPassword + "\"" + "," + "\"locale\": \"en_US\"" + "}" + "}"
     val coBrandLoginURL = localURLVer1 + "cobrand/login"
-    //HTTP.createConnection(coBrandLoginURL);
 
     val content = for {
       request <- Marshal(requestBody).to[RequestEntity]
