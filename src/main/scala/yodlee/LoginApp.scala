@@ -12,7 +12,7 @@ import scala.collection.mutable.HashMap
 import scala.concurrent.ExecutionContext.Implicits.global
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
-import yodlee.domain.CobrandContext
+import yodlee.domain.{CobrandContext, UserContext}
 
 object LoginApp extends App {
   println("LoginApp START")
@@ -25,8 +25,11 @@ object LoginApp extends App {
   val coBrandUserName = config.getString("yodlee.coBrandUserName")
   val coBrandPassword = config.getString("yodlee.coBrandPassword")
   val userName = config.getString("yodlee.userName")
-  val userPassword = config.getString("yodlee.userPassword")
-//  val registerParam = config.getString("yodlee.registerParam")
+  //val userPassword = config.getString("yodlee.userPassword")
+  println("Enter Yodlee password:")
+  val userPassword = scala.io.StdIn.readLine()
+
+  //  val registerParam = config.getString("yodlee.registerParam")
 
   val loginTokens = new HashMap[String, String]
   val cobTokens = new HashMap[String, String]
@@ -36,6 +39,10 @@ object LoginApp extends App {
   implicit val formats = DefaultFormats
 
   doCoBrandLogin(coBrandUserName, coBrandPassword)
+  doMemberLogin(userName, userPassword)
+
+  println("LOGGED IN")
+  println("LoginApp FINISH")
 
   def doCoBrandLogin(coBrandUserName: String, coBrandPassword: String): Unit = {
     val mn = "doCoBrandLogin(coBrandUserName " + coBrandUserName + ", coBrandPassword " + coBrandPassword + " )"
@@ -46,25 +53,41 @@ object LoginApp extends App {
 
     val content = for {
       request <- Marshal(requestBody).to[RequestEntity]
-      response <- Http().singleRequest(HttpRequest(method = HttpMethods.POST, uri=coBrandLoginURL, entity = request))
+      response <- Http().singleRequest(HttpRequest(method = HttpMethods.POST, uri = coBrandLoginURL, entity = request))
       entity <- Unmarshal(response.entity).to[String]
     } yield entity
 
     content.onComplete(s => SetCobrand(s.get))
 
-     def SetCobrand(json: String) = {
-     //  println(json)
-       val cobrand = parse(json).extract[CobrandContext]
-
-       println("COB SESSION = " + cobrand.session.cobSession)
-       cobTokens.put("cobSession", cobrand.session.cobSession)
-       loginTokens.put("cobSession", cobrand.session.cobSession)
-     }
+    def SetCobrand(json: String) = {
+      val cobrand = parse(json).extract[CobrandContext]
+      println("COB SESSION = " + cobrand.session.cobSession)
+      cobTokens.put("cobSession", cobrand.session.cobSession)
+      loginTokens.put("cobSession", cobrand.session.cobSession)
+    }
   }
 
-
   def doMemberLogin(userName: String, password: String) = {
-    // TODO
+    val mn = "doMemberLogin(userLogin=" + userName + ", userPassword=" + userPassword + ", coBrandSessionCredential=" + loginTokens.get("cobSession") + " )"
+    println(fqcn + " :: " + mn)
 
+    //final String requestBody="coBrandSessionCredential="+ loginTokens.get("cobSession")+"&loginName=" + userName + "&password="+ userPassword;
+    val userLoginURL = localURLVer1 + "user/login"
+    val requestBody = "{" + "\"user\":      {" + "\"loginName\": " + "\"" + userName + "\"" + "," + "\"password\": " + "\"" + userPassword + "\"" + "," + "\"locale\": \"en_US\"" + "}" + "}"
+
+    //HTTP.addHeaders("Authorization" , loginTokens.get("cobSession"));
+    val content = for {
+      request <- Marshal(requestBody).to[RequestEntity]
+      response <- Http().singleRequest(HttpRequest(method = HttpMethods.POST, uri = userLoginURL, entity = request))  // TODO: SESSIONTOKENS loginTokens
+        entity <- Unmarshal(response.entity).to[String]
+    } yield entity
+
+    content.onComplete(s => SetMember(s.get))
+
+    def SetMember(json: String) = {
+      val member = parse(json).extract[UserContext]
+      println("MEMBER SESSION = " + member.session.userSession)
+      loginTokens.put("userSession", member.session.userSession)
+    }
   }
 }
